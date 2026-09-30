@@ -12,7 +12,6 @@ return Application::configure(basePath: dirname(__DIR__))
         health: '/up',
     )
     ->withMiddleware(function (Middleware $middleware): void {
-        // Matikan pengecekan maintenance mode berbasis file di serverless Vercel
         $middleware->preventRequestsDuringMaintenance(except: ['*']);
     })
     ->withExceptions(function (Exceptions $exceptions): void {
@@ -21,7 +20,11 @@ return Application::configure(basePath: dirname(__DIR__))
         );
     })
     ->booting(function (Application $app): void {
-        // Kunci driver maintenance mode agar tidak bernilai null
+        // Kunci APP_KEY langsung di runtime
+        $app['config']->set('app.key', 'base64:c2FtcGxlLWtleS1mb3ItdmVyY2VsLWRlcGxveS0xMjM0NTY=');
+        $app['config']->set('app.cipher', 'AES-256-CBC');
+        
+        // Kunci maintenance & storage
         $app['config']->set('app.maintenance.driver', 'cache');
         $app['config']->set('app.maintenance.store', 'array');
     })
