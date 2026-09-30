@@ -1,3 +1,6 @@
+php
+<?php
+
 $_ENV['LOG_CHANNEL'] = 'stderr';
 $_ENV['VIEW_COMPILED_PATH'] = '/tmp/views';
 $_ENV['APP_CONFIG_CACHE'] = '/tmp/config.php';
