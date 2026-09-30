@@ -1,4 +1,3 @@
-php
 <?php
 
 $_ENV['LOG_CHANNEL'] = 'stderr';
@@ -12,3 +11,5 @@ $_ENV['APP_SERVICES_CACHE'] = '/tmp/services.php';
 if (!is_dir('/tmp/views')) {
     mkdir('/tmp/views', 0777, true);
 }
+
+require __DIR__ . '/../public/index.php';
