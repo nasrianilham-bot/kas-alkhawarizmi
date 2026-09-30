@@ -1,6 +1,6 @@
 <?php
 
-// 1. Buat direktori kerja sementara di /tmp
+// 1. Buat folder temporary yang dibutuhkan
 $dirs = [
     '/tmp/framework/views',
     '/tmp/framework/sessions',
@@ -15,45 +15,35 @@ foreach ($dirs as $dir) {
     }
 }
 
-// 2. Set environment langsung ke superglobal dan getenv
-$envs = [
-    'LOG_CHANNEL' => 'stderr',
-    'VIEW_COMPILED_PATH' => '/tmp/framework/views',
-    'SESSION_DRIVER' => 'file',
-    'CACHE_STORE' => 'array',
-    'CACHE_DRIVER' => 'array',
-    'QUEUE_CONNECTION' => 'sync',
-];
+// Hapus file cache config bawaan jika ada agar tidak bentrok
+@unlink('/tmp/config.php');
 
-foreach ($envs as $key => $val) {
-    putenv("{$key}={$val}");
-    $_ENV[$key] = $val;
-    $_SERVER[$key] = $val;
-}
+// 2. Kunci environment default
+$_ENV['LOG_CHANNEL'] = 'stderr';
+$_ENV['VIEW_COMPILED_PATH'] = '/tmp/framework/views';
+$_ENV['SESSION_DRIVER'] = 'file';
+$_ENV['CACHE_STORE'] = 'array';
+$_ENV['DB_CONNECTION'] = $_ENV['DB_CONNECTION'] ?? 'mysql';
+
+putenv('LOG_CHANNEL=stderr');
+putenv('VIEW_COMPILED_PATH=/tmp/framework/views');
+putenv('SESSION_DRIVER=file');
+putenv('CACHE_STORE=array');
 
 require __DIR__ . '/../vendor/autoload.php';
 
 $app = require_once __DIR__ . '/../bootstrap/app.php';
 
-// 3. Arahkan storage path ke /tmp
+// Arahkan storage langsung ke /tmp
 $app->useStoragePath('/tmp');
 
-// 4. Inisialisasi HTTP Kernel & paksa konfigurasi
-$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
-
-$request = Illuminate\Http\Request::capture();
-
-// Bootstrap framework lebih awal agar config terisi penuh
-$kernel->bootstrap();
-
-// Kunci konfigurasi kritis agar createDriver tidak menerima nilai null
-$app['config']->set('session.driver', 'file');
-$app['config']->set('session.files', '/tmp/framework/sessions');
-$app['config']->set('cache.default', 'array');
-$app['config']->set('logging.default', 'stderr');
-$app['config']->set('view.compiled', '/tmp/framework/views');
-
-// 5. Jalankan Request
-$response = $kernel->handle($request)->send();
-
-$kernel->terminate($request, $response);
+// 3. Tangani request sesuai arsitektur Laravel
+if (method_exists($app, 'handleRequest')) {
+    $app->handleRequest(Illuminate\Http\Request::capture());
+} else {
+    $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+    $response = $kernel->handle(
+        $request = Illuminate\Http\Request::capture()
+    )->send();
+    $kernel->terminate($request, $response);
+}
