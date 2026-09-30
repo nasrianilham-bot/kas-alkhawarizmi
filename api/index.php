@@ -1,6 +1,6 @@
 <?php
 
-// 1. Siapkan semua struktur folder di /tmp
+// 1. Buat folder temporary yang dibutuhkan
 $dirs = [
     '/tmp/framework/views',
     '/tmp/framework/sessions',
@@ -15,33 +15,43 @@ foreach ($dirs as $dir) {
     }
 }
 
-// 2. Kunci variabel environment penting untuk serverless
+// 2. Set environment fallback
 putenv('LOG_CHANNEL=stderr');
 putenv('VIEW_COMPILED_PATH=/tmp/framework/views');
 putenv('SESSION_DRIVER=file');
 putenv('CACHE_STORE=array');
 putenv('CACHE_DRIVER=array');
-putenv('APP_CONFIG_CACHE=/tmp/config.php');
-putenv('APP_EVENTS_CACHE=/tmp/events.php');
-putenv('APP_PACKAGES_CACHE=/tmp/packages.php');
-putenv('APP_ROUTES_CACHE=/tmp/routes.php');
-putenv('APP_SERVICES_CACHE=/tmp/services.php');
 
-// 3. Muat vendor & inisialisasi Laravel
 require __DIR__ . '/../vendor/autoload.php';
 
 $app = require_once __DIR__ . '/../bootstrap/app.php';
 
-// Arahkan storage utama ke /tmp
+// 3. Arahkan storage ke /tmp
 $app->useStoragePath('/tmp');
 
-// 4. Jalankan request (kompatibel Laravel modern)
-if (interface_exists(Illuminate\Contracts\Http\Kernel::class) && $app->bound(Illuminate\Contracts\Http\Kernel::class)) {
-    $kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
-    $response = $kernel->handle(
-        $request = Illuminate\Http\Request::capture()
-    )->send();
-    $kernel->terminate($request, $response);
-} else {
-    $app->handleRequest(Illuminate\Http\Request::capture());
-}
+// 4. Paksa konfigurasi langsung ke container Laravel
+$app->booted(function () use ($app) {
+    $config = $app['config'];
+    
+    // Kunci session driver ke 'file' dan arahkan path ke /tmp
+    $config->set('session.driver', 'file');
+    $config->set('session.files', '/tmp/framework/sessions');
+    
+    // Kunci cache ke array (memory)
+    $config->set('cache.default', 'array');
+    
+    // Kunci logging agar tidak menulis file
+    $config->set('logging.default', 'stderr');
+    
+    // Kunci blade view path ke /tmp
+    $config->set('view.compiled', '/tmp/framework/views');
+});
+
+// 5. Eksekusi request
+$kernel = $app->make(Illuminate\Contracts\Http\Kernel::class);
+
+$response = $kernel->handle(
+    $request = Illuminate\Http\Request::capture()
+)->send();
+
+$kernel->terminate($request, $response);
